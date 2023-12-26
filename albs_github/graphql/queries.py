@@ -3,9 +3,32 @@ from typing import Optional
 
 __all__ = [
     'QUERY_ORG_PROJECT_FIELDS',
+    'QUERY_SEARCH_ISSUE',
     'QUERY_ORG_REPOSITORY_INFO',
     'generate_project_issues_query',
 ]
+
+QUERY_SEARCH_ISSUE = """
+query SearchIssue($query: String!) {
+  search(
+    type: ISSUE
+    query: $query
+    last: 30
+  ) {
+    issueCount
+    edges {
+      node {
+        ... on Issue {
+          id
+          title
+          body
+          number
+        }
+      }
+    }
+  }
+}
+""".strip()
 
 QUERY_ORG_PROJECT_FIELDS = """
 query GetOrgProjectFields($org_name: String!, $project_number: Int!) {

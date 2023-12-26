@@ -38,10 +38,10 @@ class BaseGHGraphQLClient:
         if variables:
             payload['variables'] = variables
         async with aiohttp.request(
-                'POST',
-                self.__api_url,
-                json=payload,
-                headers=self.headers,
+            'POST',
+            self.__api_url,
+            json=payload,
+            headers=self.headers,
         ) as response:
             resp_json = await response.json()
             return resp_json
@@ -93,13 +93,17 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
     def parse_project_data(response: dict) -> Union[Dict, List]:
         return jmespath.search('data.organization.projectV2', response)
 
-    async def get_project_fields(self, reload: bool = False) -> FieldsReturnType:
+    async def get_project_fields(
+        self, reload: bool = False
+    ) -> FieldsReturnType:
         if self.__fields_cache and not reload:
             return self.__fields_cache
         self.__fields_cache = {}
         data_query = 'data.organization.projectV2.fields.nodes'
         raw_data = await self.make_request(
-            QUERY_ORG_PROJECT_FIELDS, variables=self.__base_query_variables)
+            QUERY_ORG_PROJECT_FIELDS,
+            variables=self.__base_query_variables,
+        )
         project_fields_data = jmespath.search(data_query, raw_data)
         for field in project_fields_data:
             if field['__typename'] == 'ProjectV2SingleSelectField':
@@ -110,7 +114,6 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         return self.__fields_cache
 
     async def get_project_issues(self, reload: bool = False):
-
         def parse_project_items(payload: dict):
             for item_data in payload['items']['nodes']:
                 content_data = item_data.pop('content', {})
@@ -125,8 +128,10 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                 project_item.project_id = self.__project_id
                 # Search for connected repository
                 for field in item_data['fieldValues']['nodes']:
-                    if (field.get('__typename') ==
-                            'ProjectV2ItemFieldRepositoryValue'):
+                    if (
+                        field.get('__typename')
+                        == 'ProjectV2ItemFieldRepositoryValue'
+                    ):
                         project_item.repository_id = field['repository']['id']
                 self.__issues_cache[project_item.id] = project_item
 
@@ -136,7 +141,9 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         self.__issues_cache = {}
         query = generate_project_issues_query()
         raw_data = await self.make_request(
-            query, variables=self.__base_query_variables)
+            query,
+            variables=self.__base_query_variables,
+        )
         project_data = self.parse_project_data(raw_data)
         self.__project_id = project_data['id']
         page_info = project_data['items']['pageInfo']
@@ -145,7 +152,9 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
             cursor = page_info['endCursor']
             query = generate_project_issues_query(next_cursor=cursor)
             raw_data = await self.make_request(
-                query, variables=self.__base_query_variables)
+                query,
+                variables=self.__base_query_variables,
+            )
             project_data = self.parse_project_data(raw_data)
             page_info = project_data['pageInfo']
             parse_project_items(project_data)
@@ -155,15 +164,19 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         await self.get_project_fields()
         await self.get_project_issues()
         repository_data = await self.make_request(
-            QUERY_ORG_REPOSITORY_INFO, variables=self.__base_query_variables)
+            QUERY_ORG_REPOSITORY_INFO,
+            variables=self.__base_query_variables,
+        )
         self.__default_repository_id = jmespath.search(
-            'data.organization.repository.id', repository_data)
+            'data.organization.repository.id',
+            repository_data,
+        )
 
     async def __set_single_select_field(
         self,
         column_name: str,
         option_name: str,
-        issue_id: str
+        issue_id: str,
     ):
         column: SingleSelectProjectField = self.__fields_cache.get(column_name)
         if not column:
@@ -174,10 +187,12 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                 option = opt
                 break
         if not option:
-            ValueError(f'Incorrect option for the column {column_name}: '
-                       f'{option_name}')
+            ValueError(
+                f'Incorrect option for the column {column_name}: {option_name}'
+            )
         mutation = generate_project_field_modification_mutation(
-            value_type='single_select')
+            value_type='single_select'
+        )
         variables = {
             'project_id': self.__project_id,
             'item_id': issue_id,
@@ -190,7 +205,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         self,
         issue_id: str,
         field_name: str,
-        field_value: str
+        field_value: str,
     ):
         field: BaseField = self.__fields_cache.get(field_name)
         if not field:
@@ -209,14 +224,17 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
 
     async def set_issue_platform(self, issue_id: str, platform_name: str):
         await self.__set_single_select_field(
-            'Platform', platform_name, issue_id)
+            'Platform',
+            platform_name,
+            issue_id,
+        )
 
     async def create_issue(
         self,
         title: str,
         body: str,
         initial_status: str = 'Todo',
-        repository_id: Optional[str] = None
+        repository_id: Optional[str] = None,
     ) -> Tuple[str, str]:
         repo_id = repository_id or self.__default_repository_id
         # Validate inputs
@@ -227,7 +245,9 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         # Create issue on the repository
         variables = {'repository_id': repo_id, 'title': title, 'body': body}
         response = await self.make_request(
-            MUTATION_CREATE_ISSUE, variables=variables)
+            MUTATION_CREATE_ISSUE,
+            variables=variables,
+        )
         new_issue_id = jmespath.search('data.createIssue.issue.id', response)
 
         # Create project item
@@ -236,8 +256,42 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
             'github_item_id': new_issue_id,
         }
         response = await self.make_request(
-            MUTATION_CREATE_PROJECT_ITEM, variables=variables)
+            MUTATION_CREATE_PROJECT_ITEM,
+            variables=variables,
+        )
         project_item_id = jmespath.search(
-            'data.addProjectV2ItemById.item.id', response)
+            'data.addProjectV2ItemById.item.id', response
+        )
         await self.set_issue_status(project_item_id, initial_status)
         return new_issue_id, project_item_id
+
+    async def create_comment(
+        self,
+        body: str,
+        item_id: str,
+    ):
+        # Validate inputs
+        if not item_id:
+            raise ValueError('Item ID cannot be empty string')
+        if not body:
+            raise ValueError('Comment body cannot be empty string')
+        variables = {'github_item_id': item_id, 'body': body}
+        response = await self.make_request(
+            MUTATION_ADD_COMMENT,
+            variables=variables,
+        )
+        return response
+
+    async def serach_issues(self, query: str):
+        if not query:
+            raise ValueError('Query cannot be empty string')
+        org_name = self.__org_name
+        repo_name = self.__default_repo_name
+        variables = {
+            'query': f"{query} repo:{org_name}/{repo_name} state:open",
+        }
+        response = await self.make_request(
+            QUERY_SEARCH_ISSUE,
+            variables=variables,
+        )
+        return response
