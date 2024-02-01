@@ -21,9 +21,9 @@ setup(
     ],
     packages=['albs_github', 'albs_github/graphql'],
     install_requires=[
-        'aiohttp==3.8.6',
-        'jmespath==1.0.1',
-        'pydantic==2.4.2',
+        'aiohttp>=3.8.6',
+        'jmespath>=1.0.1',
+        'pydantic>=2.4.2',
         'requests>=2.26.0',
     ],
     python_requires='>=3.7',
