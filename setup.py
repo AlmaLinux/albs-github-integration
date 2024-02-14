@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='albs_github',
-    version='0.1.0',
+    version='0.1.1',
     author='Vasily Kleschov',
     author_email='kleshev12@gmail.com',
     description=(
