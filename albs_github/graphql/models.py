@@ -45,6 +45,7 @@ class DraftIssueContent(BaseContent):
 
 
 class IssueContent(BaseContent):
+    id: str
     number: int
     state: str
 
@@ -60,3 +61,4 @@ class ProjectItem(BaseModel):
         Union[DraftIssueContent, IssueContent, PullRequestContent]] = None
     project_id: Optional[str] = None
     repository_id: Optional[str] = None
+    fields: Optional[dict] = None

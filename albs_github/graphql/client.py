@@ -71,6 +71,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
             'repo_name': default_repository_name,
         }
         self.__issues_cache = {}
+        self.__issues_content_cache = {}
         self.__fields_cache = {}
 
     @property
@@ -126,14 +127,30 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                 project_item = ProjectItem(**item_data)
                 project_item.content = content
                 project_item.project_id = self.__project_id
+                project_item.fields = {}
                 # Search for connected repository
                 for field in item_data['fieldValues']['nodes']:
-                    if (
-                        field.get('__typename')
-                        == 'ProjectV2ItemFieldRepositoryValue'
-                    ):
+                    type_name = field.get('__typename')
+                    if type_name == 'ProjectV2ItemFieldRepositoryValue':
                         project_item.repository_id = field['repository']['id']
+                        continue
+
+                    field_name = field["field"]["name"]
+                    filed_value = (
+                        field["name"]
+                        if type_name
+                        == "ProjectV2ItemFieldSingleSelectValue"
+                        else field["text"]
+                    )
+
+                    project_item.fields[field_name] = {
+                        "name": field_name,
+                        "value": filed_value,
+                        "filed_id": field["field"]["id"],
+                        "value_id": field["id"]
+                    }
                 self.__issues_cache[project_item.id] = project_item
+                self.__issues_content_cache[content.id] = project_item
 
         if self.__issues_cache and not reload:
             return self.__issues_cache
@@ -159,6 +176,11 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
             page_info = project_data['pageInfo']
             parse_project_items(project_data)
         return self.__issues_cache
+
+    async def get_project_content_issues(self, reload: bool = False):
+        if reload:
+            await self.get_project_issues(reload = True)
+        return self.__issues_content_cache
 
     async def initialize(self):
         await self.get_project_fields()

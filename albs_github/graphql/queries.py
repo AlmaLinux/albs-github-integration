@@ -98,11 +98,25 @@ query GetOrgProjectIssues($org_name: String!, $project_number: Int!) {
                             ... on ProjectV2ItemFieldTextValue {
                                 id
                                 text
+                                field {
+                                    __typename
+                                    ... on ProjectV2Field {
+                                        id
+                                        name
+                                    }
+                                }
                             }
                             ... on ProjectV2ItemFieldSingleSelectValue {
                                 id
                                 name
                                 optionId
+                                field {
+                                    __typename
+                                    ... on ProjectV2SingleSelectField {
+                                        id
+                                        name
+                                    }
+                                }
                             }
                             ... on ProjectV2ItemFieldRepositoryValue {
                                 repository {
