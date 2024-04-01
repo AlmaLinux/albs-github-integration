@@ -146,7 +146,7 @@ query GetRepositoryInfo ($org_name: String!, $repo_name: String!){
 
 def generate_project_issues_query(next_cursor: Optional[str] = None) -> str:
     if next_cursor:
-        insert = f'first: 100, after: {next_cursor}'
+        insert = f'first: 100, after: "{next_cursor}"'
     else:
         insert = 'first: 100'
     query = QUERY_ORG_PROJECT_ISSUES_TEMPLATE % insert

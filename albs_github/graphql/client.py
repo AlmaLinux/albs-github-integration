@@ -173,7 +173,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                 variables=self.__base_query_variables,
             )
             project_data = self.parse_project_data(raw_data)
-            page_info = project_data['pageInfo']
+            page_info = project_data['items']['pageInfo']
             parse_project_items(project_data)
         return self.__issues_cache
 
