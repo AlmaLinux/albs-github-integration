@@ -4,6 +4,7 @@ __all__ = [
     'MUTATION_CREATE_ISSUE',
     'MUTATION_ADD_COMMENT_TO_ISSUE',
     'MUTATION_CREATE_PROJECT_ITEM',
+    'MUTATION_CLOSE_ISSUE',
 ]
 
 CHANGE_PROJECT_FIELD_VALUE_TEMPLATE = """
@@ -116,5 +117,17 @@ mutation CreateProjectItem($project_id: ID!, $github_item_id: ID!) {
             id
         }
     }
+}
+""".strip()
+
+
+MUTATION_CLOSE_ISSUE = """
+mutation CloseIssue($issueId: ID!) {
+  closeIssue(input: { issueId: $issueId }) {
+    issue {
+      id
+      state
+    }
+  }
 }
 """.strip()

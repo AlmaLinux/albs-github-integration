@@ -287,6 +287,19 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         await self.set_issue_status(project_item_id, initial_status)
         return new_issue_id, project_item_id
 
+    async def close_issue(
+        self,
+        issue_id: str,
+    ):
+        # Validate inputs
+        if not issue_id:
+            raise ValueError('Issue ID cannot be empty string')
+        response = await self.make_request(
+            MUTATION_CLOSE_ISSUE,
+            variables={'issueId': issue_id},
+        )
+        return response
+
     async def create_comment(
         self,
         body: str,
