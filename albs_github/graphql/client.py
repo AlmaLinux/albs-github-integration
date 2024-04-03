@@ -173,7 +173,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                 variables=self.__base_query_variables,
             )
             project_data = self.parse_project_data(raw_data)
-            page_info = project_data['pageInfo']
+            page_info = project_data['items']['pageInfo']
             parse_project_items(project_data)
         return self.__issues_cache
 
@@ -286,6 +286,19 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         )
         await self.set_issue_status(project_item_id, initial_status)
         return new_issue_id, project_item_id
+
+    async def close_issue(
+        self,
+        issue_id: str,
+    ):
+        # Validate inputs
+        if not issue_id:
+            raise ValueError('Issue ID cannot be empty string')
+        response = await self.make_request(
+            MUTATION_CLOSE_ISSUE,
+            variables={'issueId': issue_id},
+        )
+        return response
 
     async def create_comment(
         self,
