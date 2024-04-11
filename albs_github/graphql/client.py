@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import (
     Dict,
     List,
@@ -9,12 +10,14 @@ from typing import (
 
 import aiohttp
 import jmespath
+from jwt import JWT, jwk_from_pem
 
 from .models import *
 from .mutations import *
 from .queries import *
 
 FieldsReturnType = Dict[str, Union[BaseField, SingleSelectProjectField]]
+TOKEN_TTL = 600
 
 
 class BaseGHGraphQLClient:
@@ -91,6 +94,34 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         return self.__default_repository_id
 
     @staticmethod
+    async def generate_token_for_gh_app(
+        path_to_gh_app_pem: str,
+        gh_app_id: str,
+        installation_id: str,
+    ) -> str:
+        with open(path_to_gh_app_pem, 'rb') as pem_file:
+            signing_key = jwk_from_pem(pem_file.read())
+        payload = {
+            'iat': int(time.time()),
+            'exp': int(time.time()) + TOKEN_TTL,
+            'iss': gh_app_id,
+        }
+        jwt_instance = JWT()
+        encoded_jwt = jwt_instance.encode(payload, signing_key, alg='RS256')
+        access_url = f'https://api.github.com/app/installations/{installation_id}/access_tokens'
+        async with aiohttp.request(
+            'POST',
+            access_url,
+            headers={
+                'Authorization': f'Bearer {encoded_jwt}',
+                'Accept': 'application/vnd.github.v3+json',
+            },
+            raise_for_status=True,
+        ) as response:
+            resp_json = await response.json()
+            return resp_json['token']
+
+    @staticmethod
     def parse_project_data(response: dict) -> Union[Dict, List]:
         return jmespath.search('data.organization.projectV2', response)
 
@@ -138,8 +169,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                     field_name = field["field"]["name"]
                     filed_value = (
                         field["name"]
-                        if type_name
-                        == "ProjectV2ItemFieldSingleSelectValue"
+                        if type_name == "ProjectV2ItemFieldSingleSelectValue"
                         else field["text"]
                     )
 
@@ -147,7 +177,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
                         "name": field_name,
                         "value": filed_value,
                         "filed_id": field["field"]["id"],
-                        "value_id": field["id"]
+                        "value_id": field["id"],
                     }
                 self.__issues_cache[project_item.id] = project_item
                 self.__issues_content_cache[content.id] = project_item
@@ -179,7 +209,7 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
 
     async def get_project_content_issues(self, reload: bool = False):
         if reload:
-            await self.get_project_issues(reload = True)
+            await self.get_project_issues(reload=True)
         return self.__issues_content_cache
 
     async def initialize(self):
