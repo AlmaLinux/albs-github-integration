@@ -10,7 +10,9 @@ from typing import (
 
 import aiohttp
 import jmespath
-from jwt import JWT, jwk_from_pem
+import jwt
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 
 from .models import *
 from .mutations import *
@@ -98,16 +100,20 @@ class IntegrationsGHGraphQLClient(BaseGHGraphQLClient):
         path_to_gh_app_pem: str,
         gh_app_id: str,
         installation_id: str,
+        algorithm='RS256',
     ) -> str:
         with open(path_to_gh_app_pem, 'rb') as pem_file:
-            signing_key = jwk_from_pem(pem_file.read())
+            signing_key = serialization.load_pem_private_key(
+                pem_file.read(),
+                password=None,
+                backend=default_backend()
+            )
         payload = {
             'iat': int(time.time()),
             'exp': int(time.time()) + TOKEN_TTL,
             'iss': gh_app_id,
         }
-        jwt_instance = JWT()
-        encoded_jwt = jwt_instance.encode(payload, signing_key, alg='RS256')
+        encoded_jwt = jwt.encode(payload, signing_key, algorithm=algorithm)
         access_url = f'https://api.github.com/app/installations/{installation_id}/access_tokens'
         async with aiohttp.request(
             'POST',
